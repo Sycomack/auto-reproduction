@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environments and local secrets
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Reproduction outputs
+auto-reproduction-agent/runs/
+runs/
+.tmp-*/
+*.log
+
+# Downloaded papers and upstream repositories
+resources/
+
+# Internal architecture notes
+single_agent_reproduction_framework.md
+auto-reproduction-agent/ARCHITECTURE.md
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

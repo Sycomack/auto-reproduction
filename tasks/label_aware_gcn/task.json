@@ -1,0 +1,36 @@
+{
+  "schema_version": 2,
+  "task_id": "label_aware_gcn",
+  "title": "PyTorch-based implementation of label-aware graph representation for multi-class trajectory prediction",
+  "domain": "AI / graph neural networks / trajectory prediction",
+  "paper": {
+    "path": "paper.pdf",
+    "url": "http://hubertshum.com/publications/simpac2021trajectory/files/simpac2021trajectory.pdf",
+    "publication_url": "https://doi.org/10.1016/j.simpa.2021.100122",
+    "sha256": "aeae364501e404ce91b3c57e4074b6ec8bc8ccbb45f0a25f6823de0596186784"
+  },
+  "repository": {
+    "path": "repository",
+    "url": "https://github.com/qianhuimen/Pytorch-based-Implementation-for-Label-aware-Graph-Convolution-Networks",
+    "commit": "2d32690617f70df8b261d62212ee878a77c02ccc"
+  },
+  "claims": [
+    {
+      "claim_id": "C1",
+      "statement": "For the repository's 2D traffic-prediction run of 10 epochs, the final training loss is approximately 0.05.",
+      "source": "CORE-Bench capsule-5286757 public task and repeated result metadata",
+      "experiment": "python train_2D3D.py --dataset 2D",
+      "acceptance": "Final epoch train loss is in [0.04, 0.06], covering the three public CORE-Bench runs."
+    }
+  ],
+  "budget": {
+    "max_agent_steps": 30,
+    "max_command_seconds": 1800,
+    "expected_hardware": "CPU or a small CUDA GPU",
+    "cost_tier": "medium"
+  },
+  "corebench_source": {
+    "capsule_id": "capsule-5286757",
+    "capsule_doi": "https://doi.org/10.24433/CO.8913413.v1"
+  }
+}

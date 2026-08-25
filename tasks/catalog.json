@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "source": {
+    "name": "Public paper-and-code reproduction inputs",
+    "selection_policy": "AI papers with a public paper, an official repository, and an execution target suitable for staged single-agent experiments"
+  },
+  "sources": [
+    {
+      "name": "CORE-Bench public training metadata",
+      "dataset_url": "https://huggingface.co/datasets/siegelz/core-bench",
+      "paper_url": "https://arxiv.org/abs/2409.11363",
+      "task_ids": ["culp", "label_aware_gcn", "ctgcn"]
+    },
+    {
+      "name": "Direct paper and official repository selection",
+      "publication_url": "https://proceedings.mlr.press/v235/du24e.html",
+      "repository_url": "https://github.com/composable-models/llm_multiagent_debate",
+      "task_ids": ["multiagent_debate"]
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "culp",
+      "path": "culp/task.json",
+      "ai_area": "graph-based semi-supervised classification",
+      "difficulty": "smoke"
+    },
+    {
+      "task_id": "label_aware_gcn",
+      "path": "label_aware_gcn/task.json",
+      "ai_area": "graph neural networks and trajectory prediction",
+      "difficulty": "medium"
+    },
+    {
+      "task_id": "ctgcn",
+      "path": "ctgcn/task.json",
+      "ai_area": "temporal graph neural networks",
+      "difficulty": "advanced"
+    },
+    {
+      "task_id": "multiagent_debate",
+      "path": "multiagent_debate/task.json",
+      "ai_area": "large language model multi-agent reasoning",
+      "difficulty": "modern-api-smoke",
+      "recommended": true
+    }
+  ]
+}
