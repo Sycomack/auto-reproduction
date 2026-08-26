@@ -120,13 +120,22 @@ A task may identify a figure without supplying a page number or crop rectangle:
 ```
 
 The preparation stage searches PDF text coordinates for the caption, renders
-that page, asks the vision model for a normalized figure bounding box, renders
-a high-resolution crop directly from the PDF, and asks the model for structured
-figure evidence. If visual localization fails, it falls back to a deterministic
-caption-relative crop. Generated page numbers and crop coordinates are recorded
-in `paper_evidence.json`; they are not task-authoring inputs.
-For multi-panel figures, the optional `focus` field narrows automatic
-localization to a named panel without introducing crop coordinates.
+that page, asks the vision model for a normalized full-figure bounding box, and
+renders a high-resolution figure crop directly from the PDF. If `focus` is
+present, a second localization call finds that panel within the figure and a
+higher-resolution `focus_crop` is rendered before numeric analysis. If full
+figure localization fails, it falls back to a deterministic caption-relative
+crop. A failed focus localization is reported explicitly and does not analyze
+the complete multi-panel figure as though it were the requested panel.
+
+Generated page numbers and both levels of crop coordinates are recorded in
+`paper_evidence.json`; they are not task-authoring inputs. When a task declares
+reported numeric series, the analysis prompt is constrained to those series and
+experimental x coordinates. `analysis_validation` rejects missing coordinates,
+axis ticks mistaken for data points, multiple panels in a focused crop, and
+digitized y values outside the task's declared tolerance.
+`--prepare-only --prepare-visuals` prints each evidence status and returns a
+nonzero exit code unless every declared visual has status `analyzed`.
 
 The main agent reads `paper_evidence.json` before experimenting. When prepared
 evidence is missing or ambiguous, `inspect_paper_visual` lets it request another

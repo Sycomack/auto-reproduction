@@ -13,7 +13,9 @@ Each task contains:
   label. Page numbers may be supplied as hints, but crop coordinates are found
   automatically during run preparation and never need to be authored manually.
   Multi-panel figures may use a textual `focus` such as `top-left panel`; this
-  narrows extraction without requiring coordinates.
+  triggers a second localization and high-resolution panel crop without
+  requiring coordinates. Declared numeric series and experiment coordinates
+  are used to validate that axis ticks were not mistaken for data points.
 
 Downloaded papers and repositories are not committed. Run
 `prepare-reproduction-task --task tasks/<task_id>/task.json` to materialize

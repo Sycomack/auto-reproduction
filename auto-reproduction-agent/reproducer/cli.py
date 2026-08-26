@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -60,6 +61,24 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Prepared run: {prepared.run_dir}")
             print(f"Workspace: {prepared.workspace_dir}")
             print(f"Paper evidence: {prepared.paper_evidence_path}")
+            if args.prepare_visuals:
+                evidence = json.loads(
+                    prepared.paper_evidence_path.read_text(encoding="utf-8")
+                )
+                invalid_visuals = []
+                for record in evidence.get("visual_inputs", []):
+                    visual_id = record.get("id", "unknown")
+                    status = record.get("status", "unknown")
+                    print(f"Visual evidence [{visual_id}]: {status}")
+                    if status != "analyzed":
+                        invalid_visuals.append(f"{visual_id}={status}")
+                if invalid_visuals:
+                    print(
+                        "error: Visual evidence validation did not pass: "
+                        + ", ".join(invalid_visuals),
+                        file=sys.stderr,
+                    )
+                    return 1
             return 0
         vision_client = None
         if task.visual_inputs or os.environ.get("REPRO_VISION_MODEL", "").strip():

@@ -10,10 +10,12 @@ condition, four H2O cache budgets, and four Local cache budgets. The Full score
 is reused as the plotted 100% point for both limited-cache series.
 
 `visual_inputs` identifies Figure 4 and its top-left panel without a page number
-or crop coordinates. During preparation, the Agent locates the panel, renders
-it, and extracts numeric curve points into `paper_evidence.json`. The task also
-contains approximate digitized values with an explicit tolerance so the final
-report must compare observed and expected ROUGE-2 values point by point.
+or crop coordinates. During preparation, the Agent first locates the complete
+figure, then locates and renders only the target panel before extracting curve
+points into `paper_evidence.json`. The task's declared series and cache budgets
+prevent axis ticks such as 80% and 40% from being accepted as data points. The
+task also contains approximate digitized values with an explicit tolerance, so
+the prepared evidence and final report both perform point-by-point validation.
 
 Prepare resources:
 
