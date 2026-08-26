@@ -55,6 +55,7 @@ def prepare_run(
     shutil.copytree(
         task.repository_path,
         workspace / "repository",
+        symlinks=True,
         ignore=shutil.ignore_patterns(".git", "__pycache__", ".venv", "venv"),
     )
     inputs = workspace / "inputs"

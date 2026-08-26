@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from reproducer.agent import DirectReproductionStrategy, ReproductionAgent
 from reproducer.llm import ChatResponse, TokenUsage
+from reproducer.runtime import prepare_run
 from reproducer.task import TaskSpec
 
 
@@ -83,6 +84,43 @@ class RecordingStrategy:
 
 
 class RunnerTests(unittest.TestCase):
+    def test_prepare_preserves_dangling_repository_symlinks(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "source"
+            source.mkdir()
+            (source / "paper.pdf").write_bytes(b"%PDF-test")
+            repository = source / "repository"
+            repository.mkdir()
+            dangling_link = repository / "missing-test-data"
+            try:
+                dangling_link.symlink_to("not-present")
+            except OSError as exc:
+                self.skipTest(f"Symbolic links are unavailable: {exc}")
+            task_file = source / "task.json"
+            task_file.write_text(
+                json.dumps(
+                    {
+                        "task_id": "symlink-demo",
+                        "title": "Symlink demo",
+                        "paper": {"path": "paper.pdf"},
+                        "repository": {"path": "repository"},
+                        "claims": [{"claim_id": "C1", "statement": "Demo claim"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            def fake_extract(_paper, text_path):
+                text_path.write_text("paper text", encoding="utf-8")
+
+            with patch("reproducer.runtime.workspace._extract_pdf", side_effect=fake_extract):
+                prepared = prepare_run(TaskSpec.load(task_file), root / "run")
+
+            copied_link = prepared.workspace_dir / "repository" / dangling_link.name
+            self.assertTrue(copied_link.is_symlink())
+            self.assertEqual(copied_link.readlink(), Path("not-present"))
+
     def test_tool_loop_writes_trace_and_report(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
