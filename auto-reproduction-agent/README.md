@@ -13,9 +13,15 @@ or CORE-Bench Capsule dependency.
 ```text
 task.json --materializer--> resources/paper.pdf + resources/repository
                                       |
+                    text extraction + declared figure discovery
+                                      |
+                    page render -> automatic crop -> vision analysis
+                                      |
+                           paper_evidence.json
+                                      |
                               one model conversation
                                       |
- list/read/search/write/run/finish tools
+ list/read/search/write/run/compare/inspect_paper_visual/finish tools
                                       |
  workspace + trace.jsonl + reproduction_report.md
 ```
@@ -42,13 +48,15 @@ reproducer/
 |-- llm/
 |   |-- base.py                  model client protocol
 |   |-- types.py                 normalized responses and token usage
-|   `-- openai_compatible.py     Chat Completions implementation
+|   |-- openai_compatible.py     Chat Completions implementation
+|   `-- vision.py                separate image-analysis client
 |-- tools/
 |   |-- definitions.py           model-visible tool schemas
 |   |-- registry.py              schemas bound to executable handlers
 |   `-- workspace.py             filesystem and command implementations
 |-- runtime/
 |   |-- materializer.py          download, hash check, clone, commit pinning
+|   |-- paper_evidence.py        caption search, render, crop, and vision analysis
 |   |-- workspace.py             isolated run preparation and PDF extraction
 |   `-- trace.py                 persistent JSONL event trace
 `-- config/
@@ -83,33 +91,87 @@ $env:REPRO_MODEL = "your-model-name"
 `REPRO_API_KEY` is never read from a file or written to the trace. Optional
 settings are `REPRO_API_TIMEOUT` and a JSON object in `REPRO_API_HEADERS`.
 
+Tasks with declared figures use a separate vision-model configuration. It can
+share the same API endpoint and key with the controlling model:
+
+```powershell
+$env:REPRO_VISION_MODEL = "deepseek-v4-flash-vision-exp"
+```
+
+Optional overrides are `REPRO_VISION_API_BASE`, `REPRO_VISION_API_KEY`,
+`REPRO_VISION_API_TIMEOUT`, `REPRO_VISION_MAX_TOKENS`, and
+`REPRO_VISION_API_HEADERS`. Each falls back to its corresponding `REPRO_*`
+setting except `REPRO_VISION_MODEL`, which is required when a task declares
+visual evidence.
+
+## Visual paper evidence
+
+A task may identify a figure without supplying a page number or crop rectangle:
+
+```json
+"visual_inputs": [
+  {
+    "id": "figure_4",
+    "figure_label": "Figure 4",
+    "purpose": "primary experiment reference",
+    "focus": "optional panel title or top-left panel"
+  }
+]
+```
+
+The preparation stage searches PDF text coordinates for the caption, renders
+that page, asks the vision model for a normalized figure bounding box, renders
+a high-resolution crop directly from the PDF, and asks the model for structured
+figure evidence. If visual localization fails, it falls back to a deterministic
+caption-relative crop. Generated page numbers and crop coordinates are recorded
+in `paper_evidence.json`; they are not task-authoring inputs.
+For multi-panel figures, the optional `focus` field narrows automatic
+localization to a named panel without introducing crop coordinates.
+
+The main agent reads `paper_evidence.json` before experimenting. When prepared
+evidence is missing or ambiguous, `inspect_paper_visual` lets it request another
+page or caption-based inspection at runtime. This tool is exposed only when
+`REPRO_VISION_MODEL` is configured.
+
+Numeric claims use `compare_numeric_points` for deterministic point matching.
+The tool records expected and observed values, absolute and relative errors,
+per-point tolerance decisions, and an overall result under `artifacts/`; panel
+metadata or a qualitative trend alone cannot support a numeric claim.
+
 ## Run
 
 Task manifests are tracked under `../tasks/`. Papers and repositories are
-materialized into the ignored `../resources/` cache. Start with CULP because
-it has the smallest repository and CPU experiment:
+materialized into the ignored `../resources/` cache. The tracked H2O task is a
+full local-GPU experiment, so prepare and inspect its inputs before generation:
 
 ```powershell
-python -m reproducer.materialize_cli --task ..\tasks\culp\task.json
+python -m reproducer.materialize_cli --task ..\tasks\h2o\task.json
 ```
 
 The installed equivalent is:
 
 ```powershell
-prepare-reproduction-task --task ..\tasks\culp\task.json
+prepare-reproduction-task --task ..\tasks\h2o\task.json
 ```
 
 Then run the agent:
 
 ```powershell
-python -m reproducer.cli --task ..\tasks\culp\task.json --output runs\culp-first
+python -m reproducer.cli --task ..\tasks\h2o\task.json --output runs\h2o-first
 ```
 
 Validate and prepare inputs without spending API tokens or executing paper
 code:
 
 ```powershell
-python -m reproducer.cli --task ..\tasks\culp\task.json --output runs\culp-check --prepare-only
+python -m reproducer.cli --task ..\tasks\h2o\task.json --output runs\h2o-check --prepare-only
+```
+
+For a task with `visual_inputs`, add `--prepare-visuals` to run the visual
+localization and analysis without starting the reproduction agent:
+
+```powershell
+python -m reproducer.cli --task ..\tasks\h2o\task.json --output runs\h2o-visual-check --prepare-only --prepare-visuals
 ```
 
 Use `--resources-root <path>` with either command when the cache is not at the
@@ -122,6 +184,8 @@ Every output directory contains:
 
 - `task_snapshot.json`: exact task input.
 - `workspace/paper.txt`: extracted paper text.
+- `workspace/paper_evidence.json`: structured visual evidence and provenance.
+- `workspace/paper_assets/`: automatically rendered pages and figure crops.
 - `workspace/inputs/paper.pdf`: original paper.
 - `workspace/repository/`: disposable repository copy.
 - `workspace/artifacts/`: intended experiment outputs.

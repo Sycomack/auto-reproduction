@@ -7,15 +7,25 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from ..llm import VisionClient
+from ..runtime.paper_evidence import analyze_visual_reference
+from ..task import VisualInput
 
 MAX_TEXT_CHARS = 40_000
 MAX_LISTED_FILES = 500
 
 
 class WorkspaceTools:
-    def __init__(self, root: Path, max_command_seconds: int) -> None:
+    def __init__(
+        self,
+        root: Path,
+        max_command_seconds: int,
+        vision_client: VisionClient | None = None,
+    ) -> None:
         self.root = root.resolve()
         self.max_command_seconds = max(1, max_command_seconds)
+        self.vision_client = vision_client
+        self._visual_inspection_count = 0
 
     def resolve(self, relative: str, must_exist: bool = True) -> Path:
         candidate = (self.root / relative).resolve()
@@ -90,6 +100,108 @@ class WorkspaceTools:
             raise ValueError("finish requires a non-empty Markdown report")
         return "Report accepted."
 
+    def compare_numeric_points(
+        self,
+        points: list[dict[str, Any]],
+        absolute_tolerance: float,
+        relative_tolerance: float | None = None,
+        output_path: str = "artifacts/numeric_comparison.json",
+    ) -> str:
+        if not points:
+            raise ValueError("points must not be empty")
+        absolute_tolerance = float(absolute_tolerance)
+        if absolute_tolerance < 0:
+            raise ValueError("absolute_tolerance must be non-negative")
+        if relative_tolerance is not None:
+            relative_tolerance = float(relative_tolerance)
+            if relative_tolerance < 0:
+                raise ValueError("relative_tolerance must be non-negative")
+
+        comparisons = []
+        seen_ids: set[str] = set()
+        for point in points:
+            point_id = str(point.get("id", "")).strip()
+            if not point_id:
+                raise ValueError("Every numeric point requires a non-empty id")
+            if point_id in seen_ids:
+                raise ValueError(f"Duplicate numeric point id: {point_id}")
+            seen_ids.add(point_id)
+            expected = float(point["expected"])
+            observed = float(point["observed"])
+            absolute_error = abs(observed - expected)
+            relative_error = (
+                None if expected == 0 else absolute_error / abs(expected)
+            )
+            within_absolute = absolute_error <= absolute_tolerance
+            within_relative = (
+                True
+                if relative_tolerance is None or relative_error is None
+                else relative_error <= relative_tolerance
+            )
+            comparisons.append(
+                {
+                    "id": point_id,
+                    "expected": expected,
+                    "observed": observed,
+                    "absolute_error": absolute_error,
+                    "relative_error": relative_error,
+                    "within_tolerance": within_absolute and within_relative,
+                }
+            )
+
+        payload = {
+            "absolute_tolerance": absolute_tolerance,
+            "relative_tolerance": relative_tolerance,
+            "all_within_tolerance": all(
+                item["within_tolerance"] for item in comparisons
+            ),
+            "points": comparisons,
+        }
+        target = self.resolve(output_path, must_exist=False)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=True), encoding="utf-8"
+        )
+        return json.dumps(payload, indent=2, ensure_ascii=True)
+
+    def inspect_paper_visual(
+        self,
+        prompt: str,
+        figure_label: str = "",
+        page: int | None = None,
+    ) -> str:
+        if self.vision_client is None:
+            raise RuntimeError("Visual inspection is not configured")
+        if not prompt.strip():
+            raise ValueError("prompt cannot be empty")
+        if not figure_label.strip() and page is None:
+            raise ValueError("Provide figure_label or page")
+        self._visual_inspection_count += 1
+        visual_id = f"runtime-inspection-{self._visual_inspection_count}"
+        visual = VisualInput(
+            visual_id=visual_id,
+            figure_label=figure_label.strip() or f"PDF page {page}",
+            purpose="runtime visual inspection requested by the reproduction agent",
+            page=page,
+        )
+        assets_dir = self.root / "artifacts" / "paper_inspections"
+        record = analyze_visual_reference(
+            pdf_path=self.resolve("inputs/paper.pdf"),
+            visual=visual,
+            assets_dir=assets_dir,
+            relative_prefix="artifacts/paper_inspections",
+            vision_client=self.vision_client,
+            extra_prompt=prompt,
+        )
+        record_path = assets_dir / f"{visual_id}.json"
+        record_path.write_text(
+            json.dumps(record, indent=2, ensure_ascii=True), encoding="utf-8"
+        )
+        rendered = json.dumps(record, indent=2, ensure_ascii=True)
+        if len(rendered) > MAX_TEXT_CHARS:
+            rendered = rendered[:MAX_TEXT_CHARS] + "\n...[visual output truncated]"
+        return rendered
+
     def run_command(
         self,
         argv: list[str],
@@ -141,11 +253,15 @@ def parse_tool_arguments(raw: str | dict[str, Any] | None) -> dict[str, Any]:
 
 
 def workspace_tool_handlers(tools: WorkspaceTools) -> dict[str, Any]:
-    return {
+    handlers = {
         "list_files": tools.list_files,
         "read_file": tools.read_file,
         "search_files": tools.search_files,
         "write_file": tools.write_file,
+        "compare_numeric_points": tools.compare_numeric_points,
         "run_command": tools.run_command,
         "finish": tools.finish,
     }
+    if tools.vision_client is not None:
+        handlers["inspect_paper_visual"] = tools.inspect_paper_visual
+    return handlers

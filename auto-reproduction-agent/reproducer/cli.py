@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 from .agent import ReproductionAgent
 from .config import ModelConfigurationError
-from .llm import ModelClientError, OpenAICompatibleClient
+from .llm import (
+    ModelClientError,
+    OpenAICompatibleClient,
+    OpenAICompatibleVisionClient,
+)
 from .runtime import prepare_run
 from .task import TaskSpec, TaskValidationError
 
@@ -25,26 +30,47 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--prepare-only",
         action="store_true",
-        help="Validate inputs, copy the repository, and extract the paper without calling a model",
+        help="Prepare local inputs without running the reproduction agent",
+    )
+    parser.add_argument(
+        "--prepare-visuals",
+        action="store_true",
+        help=(
+            "With --prepare-only, call the configured vision model to analyze "
+            "declared visual inputs"
+        ),
     )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.prepare_visuals and not args.prepare_only:
+        print("error: --prepare-visuals requires --prepare-only", file=sys.stderr)
+        return 2
     try:
         task = TaskSpec.load(args.task, resources_root=args.resources_root)
         if args.prepare_only:
-            prepared = prepare_run(task, args.output)
+            vision_client = (
+                OpenAICompatibleVisionClient() if args.prepare_visuals else None
+            )
+            prepared = prepare_run(
+                task, args.output, vision_client=vision_client
+            )
             print(f"Prepared run: {prepared.run_dir}")
             print(f"Workspace: {prepared.workspace_dir}")
+            print(f"Paper evidence: {prepared.paper_evidence_path}")
             return 0
+        vision_client = None
+        if task.visual_inputs or os.environ.get("REPRO_VISION_MODEL", "").strip():
+            vision_client = OpenAICompatibleVisionClient()
         client = OpenAICompatibleClient()
         agent = ReproductionAgent(
             task=task,
             client=client,
             output_dir=Path(args.output) if args.output else None,
             max_steps=args.max_steps,
+            vision_client=vision_client,
         )
         result = agent.run()
     except (

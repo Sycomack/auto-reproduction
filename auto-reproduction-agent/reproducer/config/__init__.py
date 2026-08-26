@@ -1,3 +1,3 @@
-from .settings import ModelConfig, ModelConfigurationError
+from .settings import ModelConfig, ModelConfigurationError, VisionConfig
 
-__all__ = ["ModelConfig", "ModelConfigurationError"]
+__all__ = ["ModelConfig", "ModelConfigurationError", "VisionConfig"]

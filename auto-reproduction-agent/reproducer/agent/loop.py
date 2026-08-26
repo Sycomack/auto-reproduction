@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
-from ..llm import ChatClient, TokenUsage
+from ..llm import ChatClient, TokenUsage, VisionClient
 from ..memory import ConversationMemory
 from ..runtime import TraceWriter, prepare_run
 from ..task import TaskSpec
@@ -25,13 +25,14 @@ class ReproductionAgent:
         client: ChatClient,
         output_dir: str | Path | None = None,
         max_steps: int | None = None,
+        vision_client: VisionClient | None = None,
         memory: ConversationMemory | None = None,
         strategy: AgentStrategy | None = None,
         tool_registry_factory: (
             Callable[[WorkspaceTools, TaskSpec], ToolRegistry] | None
         ) = None,
     ) -> None:
-        self.prepared = prepare_run(task, output_dir)
+        self.prepared = prepare_run(task, output_dir, vision_client=vision_client)
         self.task = task
         self.client = client
         self.max_steps = task.max_agent_steps if max_steps is None else max_steps
@@ -41,7 +42,9 @@ class ReproductionAgent:
         self.strategy = strategy or DirectReproductionStrategy()
         self.trace = TraceWriter(self.prepared.trace_path)
         self.workspace_tools = WorkspaceTools(
-            self.prepared.workspace_dir, task.max_command_seconds
+            self.prepared.workspace_dir,
+            task.max_command_seconds,
+            vision_client=vision_client,
         )
         if tool_registry_factory is None:
             self.tools = build_workspace_registry(self.workspace_tools)

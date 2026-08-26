@@ -7,7 +7,7 @@ name = "simple-reproduction-agent"
 version = "0.1.0"
 description = "A minimal single-agent loop for reproducing claims from a paper and its code repository"
 requires-python = ">=3.10"
-dependencies = ["pypdf>=5.0"]
+dependencies = ["pypdf>=5.0", "pymupdf>=1.24"]
 
 [project.scripts]
 reproduce-paper = "reproducer.cli:main"

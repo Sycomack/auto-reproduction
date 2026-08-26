@@ -20,6 +20,15 @@ class Claim:
 
 
 @dataclass(frozen=True)
+class VisualInput:
+    visual_id: str
+    figure_label: str
+    purpose: str = ""
+    focus: str = ""
+    page: int | None = None
+
+
+@dataclass(frozen=True)
 class TaskSpec:
     task_id: str
     title: str
@@ -31,6 +40,7 @@ class TaskSpec:
     repository_url: str
     repository_commit: str
     claims: tuple[Claim, ...]
+    visual_inputs: tuple[VisualInput, ...]
     max_agent_steps: int
     max_command_seconds: int
     raw: dict[str, Any]
@@ -90,6 +100,45 @@ class TaskSpec:
             )
             for item in data["claims"]
         )
+        raw_visual_inputs = data.get("visual_inputs", [])
+        if not isinstance(raw_visual_inputs, list):
+            raise TaskValidationError("visual_inputs must be a list")
+        visual_inputs: list[VisualInput] = []
+        seen_visual_ids: set[str] = set()
+        for item in raw_visual_inputs:
+            if not isinstance(item, dict):
+                raise TaskValidationError("Each visual_inputs item must be an object")
+            visual_id = str(item.get("id", "")).strip()
+            figure_label = str(item.get("figure_label", "")).strip()
+            if not visual_id:
+                raise TaskValidationError("visual_inputs[].id is required")
+            if not figure_label:
+                raise TaskValidationError(
+                    f"visual_inputs[{visual_id}].figure_label is required"
+                )
+            if visual_id in seen_visual_ids:
+                raise TaskValidationError(f"Duplicate visual input id: {visual_id}")
+            seen_visual_ids.add(visual_id)
+            raw_page = item.get("page")
+            try:
+                page = None if raw_page in (None, "") else int(raw_page)
+            except (TypeError, ValueError) as exc:
+                raise TaskValidationError(
+                    f"visual_inputs[{visual_id}].page must be an integer"
+                ) from exc
+            if page is not None and page < 1:
+                raise TaskValidationError(
+                    f"visual_inputs[{visual_id}].page must be at least 1"
+                )
+            visual_inputs.append(
+                VisualInput(
+                    visual_id=visual_id,
+                    figure_label=figure_label,
+                    purpose=str(item.get("purpose", "")).strip(),
+                    focus=str(item.get("focus", "")).strip(),
+                    page=page,
+                )
+            )
         budget = data.get("budget", {})
         return cls(
             task_id=task_id,
@@ -102,6 +151,7 @@ class TaskSpec:
             repository_url=str(data["repository"].get("url", "")),
             repository_commit=str(data["repository"].get("commit", "")),
             claims=claims,
+            visual_inputs=tuple(visual_inputs),
             max_agent_steps=int(budget.get("max_agent_steps", 25)),
             max_command_seconds=int(budget.get("max_command_seconds", 900)),
             raw=data,
