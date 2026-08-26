@@ -57,6 +57,7 @@ reproducer/
 |-- runtime/
 |   |-- materializer.py          download, hash check, clone, commit pinning
 |   |-- paper_evidence.py        caption search, render, crop, and vision analysis
+|   |-- resume.py                trace compaction and in-place run continuation
 |   |-- workspace.py             isolated run preparation and PDF extraction
 |   `-- trace.py                 persistent JSONL event trace
 `-- config/
@@ -200,6 +201,42 @@ Every output directory contains:
 - `workspace/artifacts/`: intended experiment outputs.
 - `trace.jsonl`: model and tool event trace.
 - `reproduction_report.md`: final report.
+
+## Resume an inconclusive run
+
+An inconclusive run that reached its step limit can continue in place. Resume
+uses the run's immutable `task_snapshot.json`, existing workspace, downloads,
+environment changes, and artifacts. It appends to the original `trace.jsonl`
+and continues global step numbering; it does not copy the repository or replay
+the full model conversation.
+
+For example, a run ending at step 55 can receive 80 more steps with:
+
+```powershell
+python -u -m reproducer.cli --resume runs\h2o-main-20260826-112227 --additional-steps 80
+```
+
+On Linux, a long server run can be captured with:
+
+```bash
+python -u -m reproducer.cli \
+  --resume runs/h2o-main-20260826-112227 \
+  --additional-steps 80 \
+  2>&1 | tee -a runs/h2o-main-20260826-112227.console.log
+```
+
+The command writes `workspace/resume_context.md`, a bounded and API-key-
+sanitized summary of prior findings, failed commands, and reusable artifacts.
+The first resumed model step reads that handoff and should proceed with pending
+installation or experiment work. A completed run is intentionally not
+resumable. Use another `--resume` command if the added budget also ends as
+inconclusive.
+
+Monitor the appended trace from another terminal:
+
+```bash
+tail -n 30 runs/h2o-main-20260826-112227/trace.jsonl
+```
 
 The CLI also prints controlling-agent model-call and token totals when the
 provider supplies usage metadata. Calls made by reproduced paper code are not

@@ -106,6 +106,17 @@ python -m reproducer.cli \
 
 正式运行时移除 `--prepare-only`。每次运行会在输出目录保存隔离的代码副本、论文文本、工具调用轨迹、实验产物和最终 Markdown 报告。
 
+如果运行因步数上限以 `inconclusive` 结束，可直接复用原目录继续执行。例如原 H2O 运行停在第 55 步，再增加 80 步：
+
+```bash
+python -u -m reproducer.cli \
+  --resume runs/h2o-main-20260826-112227 \
+  --additional-steps 80 \
+  2>&1 | tee -a runs/h2o-main-20260826-112227.console.log
+```
+
+续跑会保留原 workspace、已下载文件、安装结果和实验产物，并向原 `trace.jsonl` 追加第 56 步及后续记录。系统会从旧 trace 生成脱敏的 `workspace/resume_context.md` 交接摘要，而不是重新向模型发送完整历史。已经 `completed` 的运行不能续跑。
+
 运行测试：
 
 ```bash

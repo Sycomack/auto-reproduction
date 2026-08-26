@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -155,6 +155,36 @@ class TaskSpec:
             max_agent_steps=int(budget.get("max_agent_steps", 25)),
             max_command_seconds=int(budget.get("max_command_seconds", 900)),
             raw=data,
+        )
+
+    @classmethod
+    def load_run_snapshot(
+        cls,
+        path: str | Path,
+        workspace_dir: str | Path,
+    ) -> "TaskSpec":
+        """Load an immutable task snapshot against an existing run workspace."""
+        workspace = Path(workspace_dir).expanduser().resolve()
+        task = cls.load(
+            path,
+            resources_root=workspace,
+            require_resources=False,
+        )
+        paper_path = workspace / "inputs" / "paper.pdf"
+        repository_path = workspace / "repository"
+        if not paper_path.is_file():
+            raise TaskValidationError(
+                f"Resumable run paper does not exist: {paper_path}"
+            )
+        if not repository_path.is_dir():
+            raise TaskValidationError(
+                f"Resumable run repository does not exist: {repository_path}"
+            )
+        return replace(
+            task,
+            resource_dir=workspace,
+            paper_path=paper_path,
+            repository_path=repository_path,
         )
 
     @staticmethod
