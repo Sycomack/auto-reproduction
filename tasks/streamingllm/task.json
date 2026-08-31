@@ -1,0 +1,144 @@
+{
+  "schema_version": 2,
+  "task_id": "streamingllm",
+  "title": "StreamingLLM: Efficient Streaming Language Models with Attention Sinks",
+  "domain": "AI / large language model inference / streaming KV-cache",
+  "paper": {
+    "path": "paper.pdf",
+    "url": "https://arxiv.org/pdf/2309.17453v4",
+    "publication_url": "https://openreview.net/forum?id=NG7sS51zVF",
+    "arxiv_url": "https://arxiv.org/abs/2309.17453",
+    "venue": "ICLR 2024",
+    "version": "arXiv v4, ICLR 2024 conference version",
+    "sha256": "e8a7de67c7c57642648362651b4cf64fd852467e18865a298916a36098314819"
+  },
+  "repository": {
+    "path": "repository",
+    "url": "https://github.com/mit-han-lab/streaming-llm",
+    "commit": "2e5042606d69933d88fbf909bd77907456b9b4dd"
+  },
+  "task_class": "paper_main_protocol_adaptation",
+  "paper_alignment": {
+    "scope": "main_experiment_protocol",
+    "paper_location": "Section 4.1 and Figure 3",
+    "reproduced": "The Figure 3 long-text language-modeling protocol is reproduced on a lower-cost member of the paper's Pythia model family: compare Window Attention (0+1024) with StreamingLLM (4+1020) over the first 20,000 tokens of PG19 using a fixed 1024-token KV cache.",
+    "adaptation": "Figure 3 plots Pythia-12B. This task intentionally uses Pythia-2.8B to make a first single-GPU run practical. It tests the paper's central method-level behavior but is not an exact numeric reproduction of the Pythia-12B panel.",
+    "excluded": "Dense attention, sliding-window re-computation, the exact Pythia-12B panel, Llama-2, Falcon, MPT, the 4M-token Figure 5 experiment, downstream tasks, latency, memory, and pre-training ablations are outside this task."
+  },
+  "claims": [
+    {
+      "claim_id": "C1",
+      "statement": "Under the Figure 3 protocol adapted to Pythia-2.8B, retaining four initial attention-sink tokens prevents the long-text perplexity collapse observed with a recent-token-only window after the 1024-token cache starts evicting initial tokens.",
+      "source": "Paper Sections 3.1 and 4.1 and Figure 3.",
+      "experiment": "Using the pinned official repository, evaluate EleutherAI/pythia-2.8b-deduped locally on the same first 20,000 PG19 test tokens in two conditions: Window Attention with start_size=0 and recent_size=1024, and StreamingLLM with start_size=4 and recent_size=1020. Enable the repository's GPT-NeoX position-shift implementation for both conditions. Save every per-token negative log-likelihood, compute 500-token binned mean NLL and perplexity, and plot both curves against token position.",
+      "acceptance": "Both conditions must use identical token IDs, model revision, precision, position-shift implementation, and evaluation code, and must produce all 19,999 next-token losses. Support C1 only if, over bins whose tokens are at positions 2000-20000, StreamingLLM has lower mean NLL than Window Attention in at least 80% of bins; its aggregate tail mean NLL is at least 0.5 lower; and its final 5000-token mean NLL is no more than 0.5 above its first post-eviction 500-token bin. If either run is incomplete, inputs differ, non-finite values are silently discarded, the cache is not bounded to 1024, or a different model/data source is used, the result is inconclusive. Report these adaptation-specific thresholds separately from the paper's qualitative Figure 3 claim."
+    }
+  ],
+  "model_execution": {
+    "mode": "local_weights_only",
+    "external_model_api_allowed_for_experiment": false,
+    "controller_model_is_separate": true,
+    "models": [
+      {
+        "role": "both experimental conditions",
+        "model_id": "EleutherAI/pythia-2.8b-deduped",
+        "revision": "7d977fed8c4ce9649816af8cd5fe36a639cbe5b2"
+      }
+    ],
+    "requirements": [
+      "Download and execute the declared immutable model revision, not a moving main branch.",
+      "Run model inference locally in FP16 on CUDA; an API model, quantized substitute, or different Pythia checkpoint cannot support the claim.",
+      "Keep controller API credentials outside the reproduced experiment and never pass them to repository or dataset code.",
+      "Record GPU, driver, CUDA, Python, PyTorch, Transformers, Datasets, NumPy, model revision, and repository commit."
+    ]
+  },
+  "environment_protocol": {
+    "author_baseline": {
+      "python": "3.8",
+      "transformers": "4.33.0",
+      "source": "Pinned repository README Environment Setup"
+    },
+    "isolation": "Create and use a task-local environment inside the run workspace when the server provides conda, micromamba, or a compatible Python 3.8 interpreter. Do not modify the controller Agent environment merely to satisfy the reproduced repository.",
+    "installation_order": [
+      "Capture nvidia-smi, Python version, pip/conda package inventory, and available environment managers before changing software.",
+      "Install a server-GPU-compatible PyTorch build, then install the author-declared transformers==4.33.0 and the repository's remaining dependencies.",
+      "Run imports plus a short 32-token Pythia cache smoke test before downloading PG19 or starting the 20K-token evaluations.",
+      "Only after an evidenced baseline failure may the Agent apply a minimal compatibility patch or version deviation."
+    ],
+    "prohibited_shortcuts": [
+      "Do not silently upgrade Transformers beyond 4.33.0.",
+      "Do not patch repository internals to match a newer Transformers release before attempting the author baseline.",
+      "Do not reuse packages from a prior H2O run unless their exact versions are recorded and satisfy this task's environment protocol."
+    ],
+    "required_evidence": [
+      "Pre-install and final environment manifests",
+      "Baseline import and cache smoke-test logs",
+      "Complete patch diff and failure log for every compatibility deviation"
+    ]
+  },
+  "reproduction_protocol": {
+    "dataset": {
+      "name": "PG19 test split",
+      "source": "Hugging Face Datasets pg19 loader used by the official evaluation script",
+      "selection": "Tokenize the first test example with the pinned Pythia tokenizer and use input_ids[0, 0:20000]. Do not concatenate a different set of books or replace PG19 with WikiText.",
+      "num_eval_tokens": 19999,
+      "integrity": "Save the raw example identifier when available, raw UTF-8 text SHA256, tokenizer revision, selected input_ids SHA256, and selected token count. Use the same saved token IDs for both conditions."
+    },
+    "metric": {
+      "name": "next-token negative log-likelihood and perplexity",
+      "implementation": "Official examples/eval_long_ppl.py semantics using unreduced cross entropy; derive perplexity as exp(mean NLL)",
+      "aggregation": "Preserve all per-token NLL values. Report aggregate NLL/PPL for tokens 1-1024 and 2000-20000, plus contiguous 500-token bins. Compute in float64 on CPU from saved losses and report non-finite counts without dropping them."
+    },
+    "conditions": [
+      {
+        "method": "Window Attention",
+        "enable_start_recent_kv_cache": true,
+        "start_size": 0,
+        "recent_size": 1024,
+        "enable_pos_shift": true
+      },
+      {
+        "method": "StreamingLLM",
+        "enable_start_recent_kv_cache": true,
+        "start_size": 4,
+        "recent_size": 1020,
+        "enable_pos_shift": true
+      }
+    ],
+    "implementation_constraints": [
+      "Preserve the official sequential one-token evaluation semantics and past_key_values flow.",
+      "The total retained KV length after eviction must be exactly 1024 in both conditions.",
+      "Apply an identical minimal GPT-NeoX/Pythia compatibility patch to both conditions when required.",
+      "Run the two conditions sequentially by default to avoid GPU-memory contention; parallel execution is allowed only after measuring that both models fit without offload, OOM, or throughput distortion.",
+      "Do not use the final aggregate PPL alone; the post-eviction curve and per-token evidence are required."
+    ],
+    "artifact_requirements": [
+      "Immutable model, paper, repository, raw-text, and token-ID identifiers and hashes",
+      "Pre-install and final environment manifests plus GPU/CUDA information",
+      "Baseline smoke-test logs and any compatibility patch diff",
+      "Raw per-token NLL files for both complete 19,999-token conditions",
+      "A CSV or JSON table of 500-token bins with token range, mean NLL, perplexity, finite count, and method",
+      "A comparison JSON evaluating every acceptance condition",
+      "A regenerated NLL or log-perplexity curve with a marker at cache position 1024"
+    ]
+  },
+  "budget": {
+    "max_agent_steps": 40,
+    "max_command_seconds": 10800,
+    "expected_hardware": "One CUDA-capable NVIDIA GPU with at least 12 GB VRAM; 16 GB or more recommended",
+    "expected_disk_gb": 15,
+    "cost_tier": "medium local-GPU sequential evaluation"
+  },
+  "known_compatibility_issues": [
+    "The pinned repository README requires transformers==4.33.0 but does not pin PyTorch, CUDA, Datasets, or other packages. Select compatible versions conservatively and record them.",
+    "Pythia checkpoints normally report model.config.model_type as gpt_neox, while the pinned examples/eval_long_ppl.py cache-dimension branch checks for pythia. Confirm this with the smoke test and, if reproduced, minimally change that branch to accept gpt_neox; the position-shift branch already uses gpt_neox.",
+    "Current Hugging Face Datasets releases may no longer support the paper-era pg19 loading path. Prefer a task-local compatible Datasets release or a canonical PG19 download while preserving the first-test-example selection and hashes; do not substitute WikiText.",
+    "The task uses Pythia-2.8B instead of the Pythia-12B panel shown in Figure 3. A supported result validates the lower-cost protocol adaptation, not exact numeric agreement with that panel.",
+    "Per-token evaluation is sequential and may take tens of minutes to several hours depending on the GPU. Preserve completed condition outputs so a resumed run does not recompute them."
+  ],
+  "evaluation_policy": {
+    "visible_claim": true,
+    "hidden_gold_answer": false,
+    "allowed_verdicts": ["supported", "not supported", "inconclusive"]
+  }
+}

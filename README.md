@@ -34,8 +34,9 @@ auto-reproduction/
 | Task | 方向 | 定位 |
 | --- | --- | --- |
 | `h2o` | LLM KV Cache 压缩 | 复现 Figure 4 左上角 XSUM/LLaMA-7B/ROUGE-2 完整曲线 |
+| `streamingllm` | 流式 LLM / Attention Sink | 以 Pythia-2.8B 适配 Figure 3 的 20K-token 主实验协议 |
 
-H2O 任务来自 NeurIPS 2023 论文及作者官方仓库。它需要本地运行 LLaMA-7B 的九组配置，属于高成本 GPU 实验，不是 smoke test。详细范围和数值比较要求见 `tasks/catalog.json` 和 `tasks/h2o/task.json`。
+H2O 任务来自 NeurIPS 2023 论文及作者官方仓库。它需要本地运行 LLaMA-7B 的九组配置，属于高成本 GPU 实验，不是 smoke test。StreamingLLM 任务来自 ICLR 2024，比较固定 1024-token cache 下的 Window Attention 与 StreamingLLM；为控制单卡成本，它使用论文同一模型族的 Pythia-2.8B，而不是 Figure 3 中的 Pythia-12B，因此明确归类为主实验协议适配。详细范围见 `tasks/catalog.json` 和各任务目录。
 
 ## 获取项目
 
@@ -90,6 +91,10 @@ export REPRO_MODEL="your-model-name"
 ```bash
 prepare-reproduction-task --task ../tasks/h2o/task.json
 ```
+
+运行 StreamingLLM 时将任务路径替换为
+`../tasks/streamingllm/task.json`。准备器只下载任务声明的论文和固定提交仓库；
+模型权重与 PG19 数据仍由 Agent 在隔离运行工作区中按任务协议获取。
 
 资源将保存到 `../resources/h2o/`。重复执行时会校验并复用已有资源。该准备器只获取输入中明确给出的论文和仓库；模型权重和实验依赖仍由复现 Agent 在运行中自行发现和获取。
 

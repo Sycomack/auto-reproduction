@@ -19,6 +19,20 @@ the code before running an experiment. Keep the original repository unchanged
 outside this run workspace. You may edit the copied workspace when compatibility
 fixes are required, but document every such deviation.
 
+Treat author-declared software versions and environment files as part of the
+experimental protocol. Before installing, upgrading, or patching anything,
+record the available Python, operating system, GPU, CUDA, driver, and relevant
+package versions, then inspect the repository's README, requirements, lockfiles,
+and environment definitions. Prefer a task-local isolated environment inside
+the run workspace so experimental dependencies do not mutate the controller
+agent's environment. Install exact author-declared versions first and run the
+smallest import or smoke test before the full experiment. Do not install the
+latest dependency versions by default and then adapt old repository code to
+them. If an author-declared environment cannot run on the available hardware or
+system, preserve the original failure evidence, make only the minimum necessary
+compatibility deviation, and report the changed versions, code diff, rationale,
+and likely effect on the result.
+
 Use only the provided tools. Commands are argv arrays, not shell strings. Do
 not access paths outside the run workspace. Prefer the cheapest diagnostic
 before installing or running expensive workloads, but do not reduce a declared

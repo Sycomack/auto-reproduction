@@ -2,7 +2,7 @@
   "schema_version": 1,
   "source": {
     "name": "Public paper-and-code reproduction inputs",
-    "selection_policy": "The H2O paper, its official repository, and a paper-aligned first-panel reproduction target"
+    "selection_policy": "Public AI papers with official repositories and paper-aligned local-GPU reproduction targets"
   },
   "sources": [
     {
@@ -10,6 +10,12 @@
       "publication_url": "https://proceedings.neurips.cc/paper_files/paper/2023/hash/6ceefa7b15572587b78ecfcebb2827f8-Abstract-Conference.html",
       "repository_url": "https://github.com/FMInference/H2O",
       "task_ids": ["h2o"]
+    },
+    {
+      "name": "StreamingLLM ICLR 2024 long-text protocol adaptation",
+      "publication_url": "https://openreview.net/forum?id=NG7sS51zVF",
+      "repository_url": "https://github.com/mit-han-lab/streaming-llm",
+      "task_ids": ["streamingllm"]
     }
   ],
   "tasks": [
@@ -19,6 +25,13 @@
       "ai_area": "large language model KV-cache compression and local inference",
       "difficulty": "high-local-gpu",
       "suite": "main_experiments"
+    },
+    {
+      "task_id": "streamingllm",
+      "path": "streamingllm/task.json",
+      "ai_area": "streaming language modeling and attention-sink KV-cache",
+      "difficulty": "medium-local-gpu",
+      "suite": "main_protocol_adaptations"
     }
   ]
 }

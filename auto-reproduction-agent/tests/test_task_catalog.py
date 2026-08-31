@@ -73,6 +73,32 @@ class MainExperimentTaskContractTests(unittest.TestCase):
         self.assertIn("Never embed a credential", SYSTEM_PROMPT)
         self.assertIn("local-only must not call an external model API", SYSTEM_PROMPT)
 
+    def test_agent_prompt_treats_author_environment_as_protocol(self) -> None:
+        self.assertIn("author-declared software versions", SYSTEM_PROMPT)
+        self.assertIn("task-local isolated environment", SYSTEM_PROMPT)
+        self.assertIn("Install exact author-declared versions first", SYSTEM_PROMPT)
+        self.assertIn("latest dependency versions by default", SYSTEM_PROMPT)
+        self.assertIn("compatibility deviation, and report", SYSTEM_PROMPT)
+
+    def test_streamingllm_pins_model_and_author_environment(self) -> None:
+        task = json.loads(
+            (self.tasks_root / "streamingllm" / "task.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(
+            task["environment_protocol"]["author_baseline"]["transformers"],
+            "4.33.0",
+        )
+        self.assertRegex(
+            task["model_execution"]["models"][0]["revision"],
+            r"^[0-9a-f]{40}$",
+        )
+        self.assertIn(
+            "Do not silently upgrade Transformers",
+            "\n".join(task["environment_protocol"]["prohibited_shortcuts"]),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
