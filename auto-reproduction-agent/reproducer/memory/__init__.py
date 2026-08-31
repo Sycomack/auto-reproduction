@@ -1,3 +1,11 @@
-from .conversation import ConversationMemory
+from .config import MemoryConfig
+from .conversation import ConversationMemory, MemoryCompactionResult
+from .structured import MemoryItem, StructuredMemoryState
 
-__all__ = ["ConversationMemory"]
+__all__ = [
+    "ConversationMemory",
+    "MemoryCompactionResult",
+    "MemoryConfig",
+    "MemoryItem",
+    "StructuredMemoryState",
+]

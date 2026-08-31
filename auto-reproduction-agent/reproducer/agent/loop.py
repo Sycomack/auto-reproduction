@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from ..llm import ChatClient, TokenUsage, VisionClient
-from ..memory import ConversationMemory
+from ..memory import ConversationMemory, MemoryCompactionResult, MemoryConfig
 from ..runtime import PreparedWorkspace, TraceWriter, prepare_run
 from ..task import TaskSpec
 from ..tools import (
@@ -49,7 +49,14 @@ class ReproductionAgent:
             raise ValueError("start_step must be at least 1")
         self.start_step = start_step
         self.resume_context = resume_context.strip()
-        self.memory = memory or ConversationMemory()
+        self.memory = (
+            memory
+            if memory is not None
+            else ConversationMemory(
+                config=MemoryConfig.from_environment(),
+                state_path=self.prepared.workspace_dir / "memory_state.json",
+            )
+        )
         self.strategy = strategy or DirectReproductionStrategy()
         self.trace = TraceWriter(self.prepared.trace_path)
         self.workspace_tools = WorkspaceTools(
@@ -97,6 +104,7 @@ class ReproductionAgent:
         model_calls = 0
         token_usage = TokenUsage()
         for step in range(self.start_step, end_step + 1):
+            self.memory.begin_step(step)
             self.memory.extend(self.strategy.before_step(self.task, step))
             response = self.client.complete(
                 self.memory.as_messages(), self.tools.definitions
@@ -116,6 +124,12 @@ class ReproductionAgent:
             tool_calls = message.get("tool_calls") or []
             if not tool_calls:
                 self.memory.add(self.strategy.no_tool_message(step))
+                self.memory.finish_step(step)
+                compaction = self.memory.maybe_compact(self.client)
+                if compaction.attempted:
+                    model_calls += 1
+                    token_usage = token_usage + compaction.usage
+                    self._trace_compaction(compaction, step)
                 continue
 
             observations: list[dict[str, Any]] = []
@@ -144,6 +158,7 @@ class ReproductionAgent:
                 )
 
                 if name == "finish" and result.get("ok"):
+                    self.memory.finish_step(step)
                     report = str(arguments.get("report_markdown", "")).strip()
                     status = str(arguments.get("status", "completed"))
                     self.prepared.report_path.write_text(report + "\n", encoding="utf-8")
@@ -161,6 +176,12 @@ class ReproductionAgent:
             self.memory.extend(
                 self.strategy.after_tools(self.task, step, observations)
             )
+            self.memory.finish_step(step)
+            compaction = self.memory.maybe_compact(self.client)
+            if compaction.attempted:
+                model_calls += 1
+                token_usage = token_usage + compaction.usage
+                self._trace_compaction(compaction, step)
 
         report = (
             f"# Reproduction report: {self.task.task_id}\n\n"
@@ -179,3 +200,24 @@ class ReproductionAgent:
             model_calls=model_calls,
             token_usage=token_usage,
         )
+
+    def _trace_compaction(
+        self, result: MemoryCompactionResult, step: int
+    ) -> None:
+        fields = {
+            "step": step,
+            "compacted_steps": list(result.compacted_steps),
+            "estimated_tokens_before": result.estimated_tokens_before,
+            "estimated_tokens_after": result.estimated_tokens_after,
+            "model": result.model,
+            "response_id": result.response_id,
+            "usage": result.usage.as_dict(),
+            "memory_state": "workspace/memory_state.json",
+            "curator_message": result.curator_message,
+        }
+        if result.compacted:
+            self.trace.write("memory_compacted", **fields)
+        else:
+            self.trace.write(
+                "memory_compaction_failed", error=result.error, **fields
+            )

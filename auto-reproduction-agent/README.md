@@ -44,7 +44,9 @@ reproducer/
 |   |-- strategy.py              replaceable guidance and lifecycle hooks
 |   `-- state.py                 final run state
 |-- memory/
-|   `-- conversation.py          in-run conversation history
+|   |-- config.py                context thresholds and memory policy
+|   |-- conversation.py          complete-step grouping and context compaction
+|   `-- structured.py            ACE-style memory state, deltas, and persistence
 |-- llm/
 |   |-- base.py                  model client protocol
 |   |-- types.py                 normalized responses and token usage
@@ -64,10 +66,31 @@ reproducer/
     `-- settings.py              environment-based model settings
 ```
 
-`ConversationMemory` is intentionally small today: it owns the current model
-message history and returns defensive copies. Future context truncation,
-summarization, persistence, or retrieval can be added behind this interface
-without changing the agent loop.
+`ConversationMemory` keeps the immutable system/task prefix and the most recent
+complete agent steps as raw messages. Once the configured context threshold is
+crossed, older complete steps are passed to the same controlling model for
+curation. The model returns an ACE-style delta (`upsert`, `resolve`, and
+`supersede`) instead of rewriting memory wholesale. The resulting structured
+state is persisted at `workspace/memory_state.json` and inserted before the
+recent raw steps on later model calls.
+
+Tool-call integrity is preserved during ReSum-style compaction: an assistant
+message containing `tool_calls` and all matching `tool_call_id` results are one
+indivisible step. `trace.jsonl` remains the full audit record. Invalid curator
+JSON, a curator API error, or a state-write failure produces a
+`memory_compaction_failed` trace event and leaves all raw messages in context.
+
+Memory curation uses the controlling chat model and therefore adds model calls
+and tokens to the totals reported by the CLI. Its successful calls appear as
+`memory_compacted` events in the trace. Runtime settings are:
+
+- `REPRO_MEMORY_ENABLED` (default `true`): set to `false` for the original full-history behavior.
+- `REPRO_MEMORY_MAX_CONTEXT_TOKENS` (default `48000`): approximate trigger threshold.
+- `REPRO_MEMORY_RECENT_STEPS` (default `3`): complete raw steps retained after compaction.
+- `REPRO_MEMORY_MIN_COMPACTION_STEPS` (default `4`): minimum older steps per curator call.
+- `REPRO_MEMORY_MAX_ITEMS` (default `120`): maximum structured memory entries.
+- `REPRO_MEMORY_SUMMARY_MAX_CHARS` (default `16000`): model-visible state size bound.
+- `REPRO_MEMORY_CHARS_PER_TOKEN` (default `4`): fallback token-size estimator.
 
 ## Setup
 
@@ -195,6 +218,7 @@ Every output directory contains:
 - `task_snapshot.json`: exact task input.
 - `workspace/paper.txt`: extracted paper text.
 - `workspace/paper_evidence.json`: structured visual evidence and provenance.
+- `workspace/memory_state.json`: structured long-term working state, created after the first successful compaction.
 - `workspace/paper_assets/`: automatically rendered pages and figure crops.
 - `workspace/inputs/paper.pdf`: original paper.
 - `workspace/repository/`: disposable repository copy.

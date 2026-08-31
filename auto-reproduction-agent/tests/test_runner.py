@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from reproducer.agent import DirectReproductionStrategy, ReproductionAgent
 from reproducer.llm import ChatResponse, TokenUsage
+from reproducer.memory import ConversationMemory, MemoryConfig
 from reproducer.runtime import prepare_run
 from reproducer.task import TaskSpec
 
@@ -59,6 +60,69 @@ class FakeClient:
             usage=TokenUsage(12, 5, 17),
             model="fake-model",
             response_id=f"response-{self.calls}",
+        )
+
+
+class CompactingFakeClient:
+    def __init__(self) -> None:
+        self.main_calls = 0
+        self.curator_calls = 0
+
+    def complete(self, messages, tools):
+        if not tools:
+            self.curator_calls += 1
+            return ChatResponse(
+                message={
+                    "role": "assistant",
+                    "content": json.dumps(
+                        {
+                            "current_goal": "Complete the demo",
+                            "next_action": "Submit the report",
+                            "upsert": [
+                                {
+                                    "key": "paper-read",
+                                    "category": "evidence",
+                                    "content": "paper.txt was inspected",
+                                }
+                            ],
+                            "resolve": [],
+                            "supersede": [],
+                        }
+                    ),
+                },
+                usage=TokenUsage(3, 2, 5),
+                model="fake-curator",
+                response_id="curator-response",
+            )
+
+        self.main_calls += 1
+        if self.main_calls <= 3:
+            name = "read_file"
+            arguments = {"path": "paper.txt"}
+        else:
+            name = "finish"
+            arguments = {
+                "status": "completed",
+                "report_markdown": "# Report\n\nVerdict: supported",
+            }
+        return ChatResponse(
+            message={
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": f"{name}-{self.main_calls}",
+                        "type": "function",
+                        "function": {
+                            "name": name,
+                            "arguments": json.dumps(arguments),
+                        },
+                    }
+                ],
+            },
+            usage=TokenUsage(10, 4, 14),
+            model="fake-model",
+            response_id=f"main-response-{self.main_calls}",
         )
 
 
@@ -170,6 +234,66 @@ class RunnerTests(unittest.TestCase):
             self.assertIn('"event": "tool_result"', trace)
             self.assertIn('"model": "fake-model"', trace)
             self.assertTrue((output / "workspace" / "repository" / "README.md").is_file())
+
+    def test_tool_loop_traces_and_counts_memory_compaction(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "source"
+            source.mkdir()
+            (source / "paper.pdf").write_bytes(b"%PDF-test")
+            repository = source / "repository"
+            repository.mkdir()
+            (repository / "README.md").write_text("demo", encoding="utf-8")
+            task_file = source / "task.json"
+            task_file.write_text(
+                json.dumps(
+                    {
+                        "task_id": "memory-demo",
+                        "title": "Memory demo task",
+                        "paper": {"path": "paper.pdf"},
+                        "repository": {"path": "repository"},
+                        "claims": [{"claim_id": "C1", "statement": "Demo claim"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            output = root / "run"
+            memory = ConversationMemory(
+                config=MemoryConfig(
+                    max_context_tokens=1,
+                    recent_steps=1,
+                    min_compaction_steps=2,
+                    max_state_items=10,
+                ),
+                state_path=output / "workspace" / "memory_state.json",
+            )
+            client = CompactingFakeClient()
+
+            def fake_extract(_paper, text_path):
+                text_path.write_text("paper text", encoding="utf-8")
+
+            with patch(
+                "reproducer.runtime.workspace._extract_pdf",
+                side_effect=fake_extract,
+            ):
+                result = ReproductionAgent(
+                    TaskSpec.load(task_file),
+                    client,
+                    output_dir=output,
+                    max_steps=4,
+                    memory=memory,
+                ).run()
+
+            self.assertEqual(result.status, "completed")
+            self.assertEqual(result.model_calls, 5)
+            self.assertEqual(result.token_usage, TokenUsage(43, 18, 61))
+            self.assertEqual(client.main_calls, 4)
+            self.assertEqual(client.curator_calls, 1)
+            self.assertTrue((output / "workspace" / "memory_state.json").is_file())
+            trace = result.trace_path.read_text(encoding="utf-8")
+            self.assertIn('"event": "memory_compacted"', trace)
+            self.assertIn('"compacted_steps": [1, 2]', trace)
+            self.assertIn('"model": "fake-curator"', trace)
 
 
 if __name__ == "__main__":

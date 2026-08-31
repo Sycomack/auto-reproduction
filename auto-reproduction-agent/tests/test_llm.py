@@ -43,13 +43,17 @@ class LLMContractTests(unittest.TestCase):
 
         with patch(
             "urllib.request.urlopen", return_value=_FakeHTTPResponse(body)
-        ):
+        ) as mocked_urlopen:
             response = client.complete([], [])
 
+        request = mocked_urlopen.call_args.args[0]
+        payload = json.loads(request.data.decode("utf-8"))
         self.assertEqual(response.message["content"], "done")
         self.assertEqual(response.model, "served-model")
         self.assertEqual(response.response_id, "response-1")
         self.assertEqual(response.usage, TokenUsage(11, 7, 18))
+        self.assertNotIn("tools", payload)
+        self.assertNotIn("tool_choice", payload)
 
     def test_token_usage_accepts_alternative_names_and_bad_values(self) -> None:
         usage = TokenUsage.from_api(
