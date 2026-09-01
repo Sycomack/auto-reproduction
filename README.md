@@ -33,10 +33,10 @@ auto-reproduction/
 
 | Task | 方向 | 定位 |
 | --- | --- | --- |
-| `h2o` | LLM KV Cache 压缩 | 复现 Figure 4 左上角 XSUM/LLaMA-7B/ROUGE-2 完整曲线 |
+| `h2o` | LLM KV Cache 压缩 | 复现 Figure 4 中 3 个 LLaMA-7B/13B 主实验面板，共 27 组配置 |
 | `streamingllm` | 流式 LLM / Attention Sink | 以 Pythia-2.8B 适配 Figure 3 的 20K-token 主实验协议 |
 
-H2O 任务来自 NeurIPS 2023 论文及作者官方仓库。它需要本地运行 LLaMA-7B 的九组配置，属于高成本 GPU 实验，不是 smoke test。StreamingLLM 任务来自 ICLR 2024，比较固定 1024-token cache 下的 Window Attention 与 StreamingLLM；为控制单卡成本，它使用论文同一模型族的 Pythia-2.8B，而不是 Figure 3 中的 Pythia-12B，因此明确归类为主实验协议适配。详细范围见 `tasks/catalog.json` 和各任务目录。
+H2O 任务来自 NeurIPS 2023 论文及作者官方仓库。它包含 XSUM/LLaMA-7B、CNN/DailyMail/LLaMA-7B 和 XSUM/LLaMA-13B 三个 claim，每个 claim 运行 Full、H2O 和 Local 的 9 组配置，属于高成本多日 GPU 实验。StreamingLLM 任务来自 ICLR 2024，比较固定 1024-token cache 下的 Window Attention 与 StreamingLLM；为控制单卡成本，它使用论文同一模型族的 Pythia-2.8B，而不是 Figure 3 中的 Pythia-12B，因此明确归类为主实验协议适配。详细范围见 `tasks/catalog.json` 和各任务目录。
 
 ## 获取项目
 
@@ -107,7 +107,7 @@ python -m reproducer.cli \
   --prepare-only
 ```
 
-若已配置视觉模型，可增加 `--prepare-visuals`，在正式 GPU 实验前检查 Figure 4 的定位、裁剪和数值提取。
+H2O 的 Figure 4 参考点已结构化写入 task，不声明 `visual_inputs`，因此无需配置 `REPRO_VISION_MODEL` 或增加 `--prepare-visuals`。
 
 正式运行时移除 `--prepare-only`。每次运行会在输出目录保存隔离的代码副本、论文文本、工具调用轨迹、实验产物和最终 Markdown 报告。
 
@@ -132,4 +132,4 @@ python -m unittest discover -s tests -v
 
 Agent 会在独立的运行目录中修改作者代码，但其命令执行目前仍继承宿主 Python 进程的权限。因此只应在一次性服务器或其他隔离环境中运行可信仓库。扩展到开放论文仓库之前，需要增加 Docker 或等价的网络与文件系统隔离。
 
-H2O 使用的原始 `huggyllama/llama-7b` 权重可能需要访问授权，且论文仓库依赖较旧的 Transformers 接口。替换模型只能作为协议适配实验，不能支持原论文特定结论。
+H2O 使用的原始 `huggyllama/llama-7b` 和 `huggyllama/llama-13b` 权重可能需要访问授权，且论文仓库依赖较旧的 Transformers 接口。替换或量化模型不能支持原论文特定结论。CNN/DailyMail 请求文件未由 H2O 仓库发布，任务因此固定使用仓库内 HELM 场景和 CodaLab 数据源重建请求，并要求保留 manifest。

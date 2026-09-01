@@ -200,12 +200,11 @@ code:
 python -m reproducer.cli --task ..\tasks\h2o\task.json --output runs\h2o-check --prepare-only
 ```
 
-For a task with `visual_inputs`, add `--prepare-visuals` to run the visual
-localization and analysis without starting the reproduction agent:
-
-```powershell
-python -m reproducer.cli --task ..\tasks\h2o\task.json --output runs\h2o-visual-check --prepare-only --prepare-visuals
-```
+For a task that declares `visual_inputs`, add `--prepare-visuals` to run its
+visual localization and analysis without starting the reproduction agent.
+The current H2O task does not declare visual inputs: its three panels and all
+approximate reference points are supplied directly in `task.json`, so H2O does
+not require `REPRO_VISION_MODEL` or `--prepare-visuals`.
 
 Use `--resources-root <path>` with either command when the cache is not at the
 project-default `resources/` location. The materializer handles only declared

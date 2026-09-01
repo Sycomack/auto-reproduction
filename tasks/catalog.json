@@ -6,7 +6,7 @@
   },
   "sources": [
     {
-      "name": "H2O NeurIPS 2023 first-panel reproduction",
+      "name": "H2O NeurIPS 2023 three-panel reproduction",
       "publication_url": "https://proceedings.neurips.cc/paper_files/paper/2023/hash/6ceefa7b15572587b78ecfcebb2827f8-Abstract-Conference.html",
       "repository_url": "https://github.com/FMInference/H2O",
       "task_ids": ["h2o"]

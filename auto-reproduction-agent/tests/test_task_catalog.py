@@ -99,6 +99,22 @@ class MainExperimentTaskContractTests(unittest.TestCase):
             "\n".join(task["environment_protocol"]["prohibited_shortcuts"]),
         )
 
+    def test_h2o_has_three_supplied_numeric_claims_without_visual_runtime(self) -> None:
+        task = json.loads(
+            (self.tasks_root / "h2o" / "task.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            [claim["claim_id"] for claim in task["claims"]],
+            ["C1", "C2", "C3"],
+        )
+        self.assertNotIn("visual_inputs", task)
+        self.assertIs(task["evidence_policy"]["visual_model_required"], False)
+        self.assertEqual(
+            set(task["reproduction_protocol"]["claim_protocols"]),
+            {"C1", "C2", "C3"},
+        )
+        self.assertEqual(task["budget"]["max_agent_steps"], 220)
+
 
 if __name__ == "__main__":
     unittest.main()

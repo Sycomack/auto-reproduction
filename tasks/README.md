@@ -25,14 +25,23 @@ repository remain the agent's responsibility.
 
 ## H2O task
 
-`h2o` reproduces the complete XSUM/LLaMA-7B/ROUGE-2 curve in the top-left
-panel of Figure 4. It runs Full cache plus H2O and Local at four cache budgets,
-then performs point-by-point numeric comparison against values digitized from
-the paper. This is a high-cost local-GPU experiment rather than a smoke test.
+`h2o` reproduces three complete Figure 4 curves: XSUM/LLaMA-7B/ROUGE-2,
+CNN/DailyMail/LLaMA-7B/Coverage, and XSUM/LLaMA-13B/ROUGE-2. Each claim runs
+Full cache plus H2O and Local at four cache budgets, for 27 formal generation
+configurations in total. It performs a separate point-by-point comparison and
+verdict for each claim.
 
-The task claim and digitized reference values are visible inputs, not hidden
-gold answers. A run may conclude that the claim is supported, not supported,
-or inconclusive under the available environment.
+The approximate Figure 4 reference points are supplied directly in `task.json`.
+This task intentionally has no `visual_inputs` and requires no runtime vision
+model. It performs a hardware preflight, reuses LLaMA-7B weights across the
+first two claims, and gates the LLaMA-13B claim on an exact-FP16 smoke test.
+The official repository does not publish its CNN/DailyMail request JSONL, so
+the task fixes a deterministic reconstruction using the pinned HELM scenario
+and its declared CodaLab dataset bundle.
+
+The claims and digitized reference values are visible inputs, not hidden gold
+answers. Each claim may independently be supported, not supported, or
+inconclusive under the available environment.
 
 ## StreamingLLM task
 

@@ -20,25 +20,41 @@
   "task_class": "paper_main_experiment",
   "paper_alignment": {
     "scope": "main_experiment_protocol",
-    "paper_location": "Section 5.1 and the top-left panel of Figure 4",
-    "reproduced": "The complete XSUM, LLaMA-7B, ROUGE-2 curve in the first Figure 4 panel: Full cache and the H2O/Local policies at 60%, 20%, 10%, and 4% KV-cache budgets, with the 100% point represented by Full.",
-    "excluded": "The other eleven Figure 4 panels, Tables 1-4, throughput and latency experiments, ablations, OPT, GPT-NeoX, CNN/DailyMail, and lm-eval-harness tasks are outside this task."
+    "paper_location": "Section 5.1 and Figure 4 panels XSUM/LLaMA-7B, XSUM/LLaMA-13B, and CNN/DailyMail/LLaMA-7B",
+    "reproduced": "Three complete Figure 4 curves. Each curve contains one Full-cache run plus H2O and Local at 60%, 20%, 10%, and 4% KV-cache budgets. C1 covers XSUM/LLaMA-7B/ROUGE-2, C2 covers CNN/DailyMail/LLaMA-7B/Coverage, and C3 covers XSUM/LLaMA-13B/ROUGE-2.",
+    "excluded": "The other nine Figure 4 panels, Tables 1-4, throughput and latency experiments, ablations, OPT, GPT-NeoX, and lm-eval-harness tasks are outside this task."
   },
-  "visual_inputs": [
-    {
-      "id": "figure_4_panel_1",
-      "figure_label": "Figure 4",
-      "focus": "top-left panel titled XSUM, LLaMA-7B",
-      "purpose": "Extract the Full, Heavy-Hitter Oracle, and Local ROUGE-2 values at every plotted KV Cache Budget for numeric comparison."
-    }
-  ],
+  "evidence_policy": {
+    "mode": "task_supplied_numeric_references",
+    "visual_model_required": false,
+    "instructions": [
+      "Do not require --prepare-visuals or REPRO_VISION_MODEL for this task.",
+      "Use the experiment coordinates and approximate digitized values in reproduction_protocol.claim_protocols as the supplied Figure 4 reference evidence.",
+      "Read paper.txt for prose and protocol context, but do not call a vision model to recover curve values.",
+      "Treat the supplied values as approximate plot digitization rather than unpublished author result files, and apply the declared per-claim tolerance."
+    ]
+  },
   "claims": [
     {
       "claim_id": "C1",
       "statement": "On the Figure 4 XSUM/LLaMA-7B experiment, H2O preserves ROUGE-2 close to the full-cache result through a 20% KV-cache budget and substantially outperforms the Local policy at the same 60%, 20%, and 10% budgets.",
-      "source": "Paper Section 5.1 and Figure 4, top-left panel (XSUM, LLaMA-7B, ROUGE-2).",
-      "experiment": "Use h2o_hf/run_helm.py and the pinned repository's h2o_hf/data/xsum.jsonl. Evaluate huggyllama/llama-7b locally on all 1000 fixed requests with one Full run; H2O at total budgets 60%, 20%, 10%, and 4% using equal heavy/recent ratios; and Local at the same budgets using only recent tokens. Score every generated-result file with the repository's bundled HELM ROUGE-2 implementation.",
-      "acceptance": "All nine distinct generation configurations and all 1000 examples per configuration are required. Support C1 only if every observed curve point is reported with its absolute error against the digitized reference, each non-100% point is within 1.0 ROUGE-2 of that reference, H2O exceeds Local by at least 2.0 ROUGE-2 at 60%, 20%, and 10%, and H2O at 20% is within 1.0 ROUGE-2 of Full. Missing budgets, fewer samples, a different checkpoint/dataset/prompt format/metric, or an inaccessible original checkpoint makes the result inconclusive."
+      "source": "Paper Section 5.1 and Figure 4, XSUM/LLaMA-7B panel (top-left, ROUGE-2).",
+      "experiment": "Use h2o_hf/run_helm.py and h2o_hf/data/xsum.jsonl from the pinned repository. Evaluate huggyllama/llama-7b locally on all 1000 fixed requests with one Full run, four H2O runs, and four Local runs. Score all outputs with the pinned repository's bundled HELM ROUGE-2 implementation and report the mean multiplied by 100.",
+      "acceptance": "All nine distinct generation configurations and all 1000 examples per configuration are required. Support C1 only if every observed point is compared with the supplied digitized reference, every non-100% point has absolute error at most 1.0 ROUGE-2, H2O exceeds Local by at least 2.0 ROUGE-2 at 60%, 20%, and 10%, and H2O at 20% is within 1.0 ROUGE-2 of Full. Missing budgets, fewer formal samples, a different checkpoint, dataset, prompt format, metric, or an inaccessible original checkpoint makes C1 inconclusive."
+    },
+    {
+      "claim_id": "C2",
+      "statement": "On the Figure 4 CNN/DailyMail/LLaMA-7B experiment, H2O preserves high summarization Coverage through a 20% KV-cache budget and substantially outperforms the Local policy at the same 60%, 20%, and 10% budgets.",
+      "source": "Paper Section 5.1 and Figure 4, CNN/DailyMail/LLaMA-7B panel (middle-left, Coverage).",
+      "experiment": "Use the pinned repository's bundled HELM SummarizationScenario with dataset_name=cnn-dm to reconstruct a deterministic zero-shot request file from the declared CodaLab bundle. Evaluate huggyllama/llama-7b locally on the first 1000 test instances emitted by that pinned scenario with one Full run, four H2O runs, and four Local runs. Score summarization_coverage using the bundled HELM SummarizationMetric and report the mean multiplied by 100.",
+      "acceptance": "All nine distinct generation configurations and the same 1000 deterministic CNN/DailyMail test instances per configuration are required. Support C2 only if every observed point is compared with the supplied digitized reference, every non-100% point has absolute error at most 2.0 Coverage points, H2O exceeds Local by at least 50 Coverage points at 60%, 20%, and 10%, and H2O at 20% is within 10 Coverage points of Full. Missing budgets, fewer formal samples, inconsistent instance order, a different checkpoint, prompt construction, Coverage implementation, or failure to preserve the reconstructed request manifest makes C2 inconclusive."
+    },
+    {
+      "claim_id": "C3",
+      "statement": "On the Figure 4 XSUM/LLaMA-13B experiment, H2O preserves ROUGE-2 close to the full-cache result through a 20% KV-cache budget while the Local policy collapses at the same reduced budgets.",
+      "source": "Paper Section 5.1 and Figure 4, XSUM/LLaMA-13B panel (top row, second panel, ROUGE-2).",
+      "experiment": "Use h2o_hf/run_helm.py and h2o_hf/data/xsum.jsonl from the pinned repository. Evaluate huggyllama/llama-13b locally in FP16 on all 1000 fixed requests with one Full run, four H2O runs, and four Local runs. Score all outputs with the pinned repository's bundled HELM ROUGE-2 implementation and report the mean multiplied by 100.",
+      "acceptance": "All nine distinct generation configurations and all 1000 examples per configuration are required. Support C3 only if every observed point is compared with the supplied digitized reference, every non-100% point has absolute error at most 1.0 ROUGE-2, H2O exceeds Local by at least 10.0 ROUGE-2 at 60%, 20%, and 10%, and H2O at 20% is within 1.0 ROUGE-2 of Full. Missing budgets, fewer formal samples, a different checkpoint, dataset, prompt format, metric, quantization, offload that changes numerical precision, or an inaccessible original checkpoint makes C3 inconclusive."
     }
   ],
   "model_execution": {
@@ -47,35 +63,85 @@
     "controller_model_is_separate": true,
     "models": [
       {
-        "role": "all experimental conditions",
+        "role": "C1 and C2",
         "model_id": "huggyllama/llama-7b"
+      },
+      {
+        "role": "C3",
+        "model_id": "huggyllama/llama-13b"
       }
     ],
     "requirements": [
-      "Resolve and record the immutable Hugging Face model revision before downloading weights.",
-      "Run generation locally in FP16 on CUDA; do not replace LLaMA-7B with Llama-2, another mirror, a quantized checkpoint, or an API model for a supported verdict.",
-      "Keep the controller/vision API credentials outside the reproduced experiment and never pass them to repository code.",
-      "Record GPU, CUDA, PyTorch, Transformers, NumPy, HELM, and repository versions."
+      "Resolve and record an immutable Hugging Face revision for each checkpoint before downloading weights.",
+      "Run generation locally in FP16 on CUDA. Do not replace either checkpoint with Llama-2, another mirror, a quantized checkpoint, or an API model for a supported verdict.",
+      "Reuse the verified LLaMA-7B weights between C1 and C2 rather than downloading a second copy.",
+      "Keep controller API credentials outside the reproduced experiment and never pass them to repository or HELM code.",
+      "Record GPU, CUDA, PyTorch, Transformers, NumPy, HELM, summ-eval, and repository versions."
+    ]
+  },
+  "resource_policy": {
+    "preflight_artifact": "artifacts/resource_plan.json",
+    "required_checks": [
+      "Record GPU model, total and free VRAM, driver, CUDA, system RAM, CPU count, free disk, and existing model-cache contents before downloads or environment changes.",
+      "Estimate checkpoint download size, peak disk use, and peak FP16 VRAM for LLaMA-7B and LLaMA-13B.",
+      "Estimate runtime from a short smoke test before launching the 1000-example configurations."
+    ],
+    "execution_order": [
+      "Prepare one isolated paper-compatible environment and validate the repository imports.",
+      "Run a one-example Full-cache LLaMA-7B smoke test, then complete C1 and C2 while reusing the same verified weights.",
+      "Run a one-example Full-cache LLaMA-13B smoke test, then complete C3 only if the exact FP16 model fits without unsupported substitution.",
+      "Run formal configurations sequentially by default on a single GPU. Parallelize only after measuring that concurrent jobs cannot cause VRAM contention or change throughput and completion behavior."
+    ],
+    "decision_rules": [
+      "Smoke-test examples are resource diagnostics only and never count toward the 1000 formal examples.",
+      "Classify each claim independently as exact_local or infeasible in resource_plan.json before its formal runs.",
+      "If one claim is infeasible, preserve the failure evidence, mark only that claim inconclusive, and continue any other feasible claim.",
+      "Do not silently reduce sample count, change model, quantize, change metric, or omit cache budgets to fit the hardware.",
+      "Keep enough disk headroom for incomplete downloads and outputs; do not begin a checkpoint download when the measured free space is below the recorded peak-use estimate plus a 20 GB safety reserve."
     ]
   },
   "reproduction_protocol": {
-    "dataset": {
-      "name": "XSUM requests bundled by the official H2O repository",
-      "path": "h2o_hf/data/xsum.jsonl",
-      "sha256": "b2629129b635f77792a54c8e2f72b475c850cb429c816669185cee81e0d059c9",
-      "num_examples": 1000,
-      "prompt_policy": "Use the stored request prompts and per-request generation settings unchanged and in their original order."
+    "datasets": {
+      "xsum": {
+        "name": "XSUM requests bundled by the official H2O repository",
+        "request_path": "h2o_hf/data/xsum.jsonl",
+        "request_sha256": "b2629129b635f77792a54c8e2f72b475c850cb429c816669185cee81e0d059c9",
+        "num_examples": 1000,
+        "reference_source": "The XSUM dataset bundle used by the pinned HELM SummarizationScenario; match requests to references deterministically and preserve the resulting manifest.",
+        "prompt_policy": "Use the stored request prompts and per-request generation settings unchanged and in their original order."
+      },
+      "cnn_dailymail": {
+        "name": "CNN/DailyMail non-anonymized test instances reconstructed with the pinned HELM scenario",
+        "repository_request_path": null,
+        "source_url": "https://worksheets.codalab.org/rest/bundles/0x07630390bbda44879a2ad36e2125d64c/contents/blob/",
+        "scenario_implementation": "h2o_hf/helm/src/helm/benchmark/scenarios/summarization_scenario.py with dataset_name=cnn-dm",
+        "split": "test",
+        "selection": "First 1000 test instances emitted by the pinned scenario, without shuffling",
+        "num_examples": 1000,
+        "shots": 0,
+        "request_output_path": "artifacts/inputs/cnndm_0shot_1000.jsonl",
+        "prompt_policy": "Export requests in the JSON schema consumed by h2o_hf/run_helm.py. Preserve prompts, references, per-request generation settings, instance IDs, order, source checksum, and request-file SHA256 in a manifest."
+      }
     },
-    "metric": {
-      "name": "ROUGE-2",
-      "implementation": "The HELM evaluation code bundled in the pinned repository",
-      "requirements": "Use the same references, tokenization, normalization, and aggregation for every method and budget."
+    "metrics": {
+      "rouge_2": {
+        "name": "ROUGE-2",
+        "implementation": "get_rouge_function('rouge2') through the pinned HELM SummarizationMetric",
+        "aggregation": "Mean per-example ROUGE-2 multiplied by 100 to match Figure 4",
+        "requirements": "Use the same references, tokenization, normalization, and aggregation for C1 and C3."
+      },
+      "summarization_coverage": {
+        "name": "Coverage",
+        "implementation": "summ_eval.data_stats_metric.DataStatsMetric through the pinned HELM SummarizationMetric",
+        "aggregation": "Mean per-example summarization_coverage multiplied by 100 to match Figure 4",
+        "requirements": "Coverage is extractive-fragment coverage against the input article, not ROUGE and not generic request completion coverage."
+      }
     },
     "generation": {
       "seed": 42,
       "sample_num": 1000,
       "batch_size": 1,
-      "settings": "Preserve max_tokens, temperature, top_p, stop, n, and prompt from each stored request."
+      "settings": "Preserve max_tokens, temperature, top_p, stop, n, and prompt from each request. Use the same request file for all nine conditions within a claim."
     },
     "conditions": [
       {"method": "Full", "budget_percent": 100, "enable_small_cache": false},
@@ -88,57 +154,127 @@
       {"method": "Local", "budget_percent": 10, "heavy_ratio": 0.00, "recent_ratio": 0.10},
       {"method": "Local", "budget_percent": 4, "heavy_ratio": 0.00, "recent_ratio": 0.04}
     ],
-    "reported_results": {
-      "source": "Approximate values digitized from the top-left Figure 4 panel; these are visual references rather than underlying author result files.",
-      "x_axis": "KV Cache Budget (%)",
-      "y_axis": "ROUGE-2",
-      "absolute_digitization_tolerance": 1.0,
-      "series": {
-        "Full": [
-          {"budget_percent": 100, "rouge_2": 12.2}
-        ],
-        "Heavy-Hitter Oracle": [
-          {"budget_percent": 100, "rouge_2": 12.2},
-          {"budget_percent": 60, "rouge_2": 12.1},
-          {"budget_percent": 20, "rouge_2": 11.8},
-          {"budget_percent": 10, "rouge_2": 10.9},
-          {"budget_percent": 4, "rouge_2": 0.0}
-        ],
-        "Local": [
-          {"budget_percent": 100, "rouge_2": 12.2},
-          {"budget_percent": 60, "rouge_2": 8.3},
-          {"budget_percent": 20, "rouge_2": 6.6},
-          {"budget_percent": 10, "rouge_2": 3.3},
-          {"budget_percent": 4, "rouge_2": 0.0}
-        ]
+    "claim_protocols": {
+      "C1": {
+        "dataset_id": "xsum",
+        "model_id": "huggyllama/llama-7b",
+        "model_arch": "llama",
+        "metric_id": "rouge_2",
+        "absolute_digitization_tolerance": 1.0,
+        "reported_results": {
+          "source": "Approximate values digitized in advance from Figure 4 XSUM/LLaMA-7B; no runtime visual extraction is required.",
+          "x_axis": "KV Cache Budget (%)",
+          "y_axis": "ROUGE-2 x 100",
+          "series": {
+            "Full": [{"budget_percent": 100, "value": 12.2}],
+            "Heavy-Hitter Oracle": [
+              {"budget_percent": 100, "value": 12.2},
+              {"budget_percent": 60, "value": 12.1},
+              {"budget_percent": 20, "value": 11.8},
+              {"budget_percent": 10, "value": 10.9},
+              {"budget_percent": 4, "value": 0.0}
+            ],
+            "Local": [
+              {"budget_percent": 100, "value": 12.2},
+              {"budget_percent": 60, "value": 8.3},
+              {"budget_percent": 20, "value": 6.6},
+              {"budget_percent": 10, "value": 3.3},
+              {"budget_percent": 4, "value": 0.0}
+            ]
+          }
+        }
+      },
+      "C2": {
+        "dataset_id": "cnn_dailymail",
+        "model_id": "huggyllama/llama-7b",
+        "model_arch": "llama",
+        "metric_id": "summarization_coverage",
+        "absolute_digitization_tolerance": 2.0,
+        "reported_results": {
+          "source": "Approximate values digitized in advance from Figure 4 CNN/DailyMail/LLaMA-7B; no runtime visual extraction is required.",
+          "x_axis": "KV Cache Budget (%)",
+          "y_axis": "Coverage x 100",
+          "series": {
+            "Full": [{"budget_percent": 100, "value": 93.0}],
+            "Heavy-Hitter Oracle": [
+              {"budget_percent": 100, "value": 93.0},
+              {"budget_percent": 60, "value": 93.0},
+              {"budget_percent": 20, "value": 85.0},
+              {"budget_percent": 10, "value": 75.0},
+              {"budget_percent": 4, "value": 19.0}
+            ],
+            "Local": [
+              {"budget_percent": 100, "value": 93.0},
+              {"budget_percent": 60, "value": 16.0},
+              {"budget_percent": 20, "value": 8.0},
+              {"budget_percent": 10, "value": 11.0},
+              {"budget_percent": 4, "value": 19.0}
+            ]
+          }
+        }
+      },
+      "C3": {
+        "dataset_id": "xsum",
+        "model_id": "huggyllama/llama-13b",
+        "model_arch": "llama",
+        "metric_id": "rouge_2",
+        "absolute_digitization_tolerance": 1.0,
+        "reported_results": {
+          "source": "Approximate values digitized in advance from Figure 4 XSUM/LLaMA-13B; no runtime visual extraction is required.",
+          "x_axis": "KV Cache Budget (%)",
+          "y_axis": "ROUGE-2 x 100",
+          "series": {
+            "Full": [{"budget_percent": 100, "value": 15.9}],
+            "Heavy-Hitter Oracle": [
+              {"budget_percent": 100, "value": 15.9},
+              {"budget_percent": 60, "value": 15.7},
+              {"budget_percent": 20, "value": 15.5},
+              {"budget_percent": 10, "value": 14.8},
+              {"budget_percent": 4, "value": 9.0}
+            ],
+            "Local": [
+              {"budget_percent": 100, "value": 15.9},
+              {"budget_percent": 60, "value": 0.4},
+              {"budget_percent": 20, "value": 0.1},
+              {"budget_percent": 10, "value": 0.0},
+              {"budget_percent": 4, "value": 0.0}
+            ]
+          }
+        }
       }
     },
     "artifact_requirements": [
-      "Resolved model revision and complete environment manifest",
-      "The unmodified input-file SHA256 and exact example count",
-      "Raw generated JSONL for all nine distinct configurations",
-      "Raw HELM evaluation outputs and ROUGE-2 score for every configuration",
-      "A CSV or JSON table matching method and budget to expected value, observed value, absolute error, and relative error",
-      "A regenerated first-panel plot using the observed values"
+      "artifacts/resource_plan.json with measured hardware, model-size estimates, smoke-test results, per-claim feasibility, and execution order",
+      "Resolved revisions for both model checkpoints and complete pre-install and final environment manifests",
+      "Immutable XSUM request checksum and a CNN/DailyMail reconstruction manifest with source, instance IDs, order, references, and request-file checksum",
+      "Raw generated JSONL for all nine formal configurations of every executed claim, with exactly 1000 results per file",
+      "Raw HELM metric outputs and aggregate metric for every formal configuration",
+      "One CSV or JSON comparison artifact per claim matching method and budget to expected value, observed value, absolute error, relative error, and tolerance decision",
+      "Three regenerated plots using observed values, one for each claim",
+      "A per-claim verdict; an infeasible claim must retain diagnostic evidence and must not erase completed evidence for another claim"
     ]
   },
   "budget": {
-    "max_agent_steps": 55,
+    "max_agent_steps": 220,
     "max_command_seconds": 43200,
-    "expected_hardware": "One CUDA-capable NVIDIA GPU with at least 16 GB VRAM; 24 GB VRAM and at least 32 GB system RAM recommended",
-    "expected_disk_gb": 30,
-    "cost_tier": "high local-GPU generation"
+    "expected_hardware": "One NVIDIA RTX A6000 48 GB or comparable CUDA GPU. LLaMA-13B requires a successful exact-FP16 Full-cache smoke test before C3.",
+    "expected_disk_gb": 100,
+    "cost_tier": "very-high local-GPU generation across 27 formal configurations"
   },
   "known_compatibility_issues": [
-    "The original huggyllama/llama-7b checkpoint may require authorization or may no longer be available. A substituted model cannot support this paper-specific claim.",
-    "The repository targets older Transformers internals; current Transformers and PyTorch releases may require compatibility patches that must be documented.",
-    "Generation is stochastic even with a fixed seed, and CUDA/library changes can shift scores; preserve raw generations and report the exact environment.",
-    "The paper prose and bundled XSUM prompt files are not fully explicit about shot construction. Use the pinned xsum.jsonl unchanged and report this paper-code ambiguity.",
-    "The numeric targets were digitized from a plotted curve and are approximate; the task therefore uses an absolute ROUGE-2 tolerance instead of exact equality."
+    "The original huggyllama/llama-7b and huggyllama/llama-13b checkpoints may require authorization or may no longer be available. A substituted checkpoint cannot support the corresponding paper-specific claim.",
+    "The repository targets older Transformers internals; current Transformers and PyTorch releases may require compatibility patches that must be minimized, preserved as diffs, and discussed per claim.",
+    "The pinned H2O repository publishes xsum.jsonl but does not publish the CNN/DailyMail request JSONL used for Figure 4. C2 therefore defines a deterministic reconstruction from the CodaLab URL and HELM scenario embedded in the pinned repository; report this paper-code artifact gap.",
+    "The repository's HELM example scripts demonstrate LLaMA-7B but not LLaMA-13B. The generic run_helm.py model_name and llama architecture path are used for C3; preserve any model-size-specific failure evidence.",
+    "Generation is stochastic even with a fixed seed, and CUDA or library changes can shift scores. Preserve raw generations and report exact environment versions.",
+    "The XSUM request files do not embed all evaluation references. Reconstruct the reference mapping through the pinned HELM scenario, preserve the mapping artifact, and report any unmatched request.",
+    "All numeric targets are approximate values digitized from plotted curves rather than underlying author result files, so each claim declares an absolute tolerance."
   ],
   "evaluation_policy": {
     "visible_claim": true,
     "hidden_gold_answer": false,
+    "independent_claim_verdicts": true,
+    "overall_status_rule": "Report completed claims independently. Resource or data failure for one claim makes that claim inconclusive but does not invalidate supported evidence for another claim.",
     "allowed_verdicts": ["supported", "not supported", "inconclusive"]
   }
 }
